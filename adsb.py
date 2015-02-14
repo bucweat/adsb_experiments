@@ -139,26 +139,28 @@ class Client(object):
                 else:
                     print "exception whilst exiting: {}".format(ex)
 
-    def send_blob(self, message):
+    def send_blob(self, message, routing_key=''):
         blob = json.dumps(message)
         self._tx_channel.basic_publish(
             exchange=self._tx_exchange_name,
-            routing_key='',
+            routing_key=routing_key,
             body=blob
         )
 
 
 class Message(object):
-    def __init__(self, df, ca, icao):
+    def __init__(self, df, ca, icao, raw):
         self.df = df
         self.ca = ca
         self.icao = icao
+        self.raw = raw
 
     def to_json(self):
         return {
             'df': self.df,
             'ca': self.ca,
             'icao': self.icao,
+            'raw': self.raw
         }
 
     @staticmethod
@@ -168,9 +170,10 @@ class Message(object):
         df = blob['df']
         ca = blob['ca']
         icao = blob['icao']
+        raw = blob['raw']
 
         return Message(
-            df, ca, icao
+            df, ca, icao, raw
         )
 
     @staticmethod
@@ -206,4 +209,4 @@ class Message(object):
         ca = bits(6, 3)
         icao = bytes(1, 3)
 
-        return Message(df, ca, icao)
+        return Message(df, ca, icao, byte_string)

@@ -4,11 +4,14 @@
 __author__ = 'Oliver Maskery'
 
 
+import logging
 import signal
 import adsb
 
 
 def main():
+    logging.basicConfig()
+
     client = adsb.Client()
 
     def on_data_receive(data):
@@ -21,6 +24,7 @@ def main():
 
     signal.signal(signal.SIGINT, client.handle_sigint)
     receiver.run()
+
     print("exiting")
 
 

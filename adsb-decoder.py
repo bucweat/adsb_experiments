@@ -10,6 +10,18 @@ import adsb
 import json
 
 
+def main():
+    logging.basicConfig()
+
+    client = AdsbDecoderClient()
+    client.enable_tx_channel('adsb_decoded', 'fanout')
+    client.enable_rx_channel('adsb_raw', 'fanout')
+    signal.signal(signal.SIGINT, client.handle_sigint)
+    client.consume_in_worker()
+
+    print("exiting")
+
+
 class AdsbDecoderClient(adsb.Client):
     def __init__(self):
         adsb.Client.__init__(self)
@@ -24,16 +36,6 @@ class AdsbDecoderClient(adsb.Client):
         ))
 
         self.send_blob(decoded.to_json())
-
-
-def main():
-    logging.basicConfig()
-    client = AdsbDecoderClient()
-    client.enable_tx_channel('adsb_decoded', 'fanout')
-    client.enable_rx_channel('adsb_raw', 'fanout')
-    signal.signal(signal.SIGINT, client.handle_sigint)
-    client.consume_in_worker()
-    print("exiting")
 
 
 if __name__ == "__main__":
