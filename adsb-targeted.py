@@ -41,17 +41,22 @@ class Targeted(adsb.Client):
             int(target, 16)
             for target in targets
         ]
+        self._last_hit = datetime.datetime.now()
 
     def handle_received(self, message):
         decoded = adsb.Message.from_json(message)
 
         if decoded.icao in self._targets:
-            timestamp = datetime.datetime.now().strftime(
+            self._last_hit = datetime.datetime.now()
+            timestamp = self._last_hit.strftime(
                 '%d/%m/%Y %H:%M:%S'
             )
             print "[{}] icao {:06X} -> {}".format(
                 timestamp, decoded.icao, decoded.raw
             )
+        else:
+            delta = datetime.datetime.now() - self._last_hit
+            print "{} since last hit\r".format(delta),
 
 
 if __name__ == "__main__":
