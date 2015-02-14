@@ -7,7 +7,7 @@ Requirements:
 - Probably only works on linux (sorry!)
 - pika library for python2
 
-To play with these scripts first run the adsb-source.py, which expects to be able to run "rtl_sdr" on command line and read it's stdout. Next run the adsb-decoder.py script to perform some decoding of the messages.
+To play with these scripts first run the adsb-source.py, which expects to be able to run "rtl_adsb" on command line and read it's stdout. Next run the adsb-decoder.py script to perform some decoding of the messages.
 
 Running the scripts in any order should, however, work just as well - due to their reliance on RabbitMQ for communication. Ensure you have a RabbitMQ server running on the local machine for these to work!
 
