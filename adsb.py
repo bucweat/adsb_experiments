@@ -2,6 +2,7 @@ __author__ = 'Oliver Maskery'
 
 
 import subprocess
+import threading
 import signal
 import json
 import pika
@@ -35,29 +36,37 @@ class Receiver(object):
 class Client(object):
     def __init__(self):
         self._received_sigint = False
+
+        self._tx_connection = None
+        self._rx_connection = None
         self._rx_exchange_name = None
         self._tx_exchange_name = None
         self._tx_channel = None
         self._rx_channel = None
         self._rx_queue_name = None
+        self._received = None
 
-        self._connection = pika.BlockingConnection(pika.ConnectionParameters(
-            host='localhost'
-        ))
+
 
     def should_exit(self):
         return self._received_sigint
 
     def enable_tx_channel(self, tx_exchange_name, exchange_type):
+        self._tx_connection = pika.BlockingConnection(pika.ConnectionParameters(
+            host='localhost'
+        ))
         self._tx_exchange_name = tx_exchange_name
-        self._tx_channel = self._connection.channel()
+        self._tx_channel = self._tx_connection.channel()
         self._tx_channel.exchange_declare(
             exchange=self._tx_exchange_name, exchange_type=exchange_type
         )
 
     def enable_rx_channel(self, rx_exchange_name, exchange_type):
+        self._rx_connection = pika.BlockingConnection(pika.ConnectionParameters(
+            host='localhost'
+        ))
         self._rx_exchange_name = rx_exchange_name
-        self._rx_channel = self._connection.channel()
+        self._rx_channel = self._rx_connection.channel()
         self._rx_channel.exchange_declare(
             exchange=self._rx_exchange_name, exchange_type=exchange_type
         )
@@ -75,12 +84,40 @@ class Client(object):
         )
 
     def on_receive_message(self, channel, method, properties, body):
-        _ = self, channel, method, properties, body
+        _ = channel, method, properties
+        if self._received is not None:
+            self._received.append(body)
+        else:
+            self.handle_received(body)
+
+    def handle_received(self, message):
         pass
+
+    def next_message(self):
+        if len(self._received) < 1:
+            return None
+        return self._received.pop(0)
 
     def handle_sigint(self, signum, frame):
         _ = signum, frame
         self._received_sigint = True
+
+    def consume_in_worker(self):
+        worker = threading.Thread(
+            target=self.consume,
+            name="worker-consumer"
+        )
+
+        self._received = []
+
+        worker.start()
+
+        while not self.should_exit():
+            message = self.next_message()
+            if message is not None:
+                self.handle_received(message)
+
+        worker.join()
 
     def consume(self):
         while not self._received_sigint:

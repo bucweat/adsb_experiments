@@ -12,8 +12,9 @@ def main():
     client = adsb.Client()
 
     def on_data_receive(data):
-        print "data:", data
-        client.send_blob(data)
+        if data is not None:
+            print "data:", data
+            client.send_blob(data)
 
     receiver = adsb.Receiver(on_data_receive, client.should_exit)
     client.enable_tx_channel('adsb_raw', 'fanout')

@@ -34,15 +34,14 @@ class PlaneSeen(object):
         return self.time_since_seen() < self._interest_period
 
 
-class DecodeRawAdsb(adsb.Client):
+class RecentlySeen(adsb.Client):
     def __init__(self):
         adsb.Client.__init__(self)
         self._seen = {}
         self._ignored = 0
 
-    def on_receive_message(self, channel, method, properties, body):
-        _ = channel, method, properties
-        decoded = adsb.Message.from_json(body)
+    def handle_received(self, message):
+        decoded = adsb.Message.from_json(message)
 
         if (decoded.df, decoded.ca) == (17, 5):
             if decoded.icao not in self._seen.keys():
@@ -69,7 +68,7 @@ class DecodeRawAdsb(adsb.Client):
 
 def main():
     logging.basicConfig()
-    client = DecodeRawAdsb()
+    client = RecentlySeen()
     client.enable_rx_channel('adsb_decoded', 'fanout')
     signal.signal(signal.SIGINT, client.handle_sigint)
     client.consume()

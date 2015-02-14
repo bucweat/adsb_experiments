@@ -10,34 +10,29 @@ import adsb
 import json
 
 
-class DecodeRawAdsb(adsb.Client):
+class AdsbDecoderClient(adsb.Client):
     def __init__(self):
         adsb.Client.__init__(self)
 
-    def on_receive_message(self, channel, method, properties, body):
-        _ = channel, method, properties
+    def handle_received(self, message):
+        raw_message = json.loads(message)
 
-        try:
-            raw_message = json.loads(body)
+        decoded = adsb.Message.from_encoded(raw_message)
 
-            decoded = adsb.Message.from_encoded(raw_message)
+        print("DF: {} CA: {} ICAO: {:x}".format(
+            decoded.df, decoded.ca, decoded.icao
+        ))
 
-            print("DF: {} CA: {} ICAO: {:x}".format(
-                decoded.df, decoded.ca, decoded.icao
-            ))
-
-            self.send_blob(decoded.to_json())
-        except Exception, ex:
-            print("exception occurred: {}".format(ex))
+        self.send_blob(decoded.to_json())
 
 
 def main():
     logging.basicConfig()
-    client = DecodeRawAdsb()
-    client.enable_rx_channel('adsb_raw', 'fanout')
+    client = AdsbDecoderClient()
     client.enable_tx_channel('adsb_decoded', 'fanout')
+    client.enable_rx_channel('adsb_raw', 'fanout')
     signal.signal(signal.SIGINT, client.handle_sigint)
-    client.consume()
+    client.consume_in_worker()
     print("exiting")
 
 
