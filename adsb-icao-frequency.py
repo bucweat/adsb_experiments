@@ -15,7 +15,7 @@ class PlaneSeen(object):
         self._icao = icao
         self._last_seen = datetime.datetime.now()
         self._count = 1
-        self._interest_period = datetime.timedelta(seconds=30)
+        self._interest_period = datetime.timedelta(seconds=5)
 
     def icao(self):
         return self._icao
@@ -38,32 +38,39 @@ class RecentlySeen(adsb.Client):
     def __init__(self):
         adsb.Client.__init__(self)
         self._seen = {}
+        self._update_period = datetime.timedelta(seconds=5)
+        self._next_update = datetime.datetime.now()
         self._ignored = 0
+        self._total = 0
 
     def handle_received(self, message):
         decoded = adsb.Message.from_json(message)
+        self._total += 1
 
-        if (decoded.df, decoded.ca) == (17, 5):
+        if decoded.df in (17, 18):
             if decoded.icao not in self._seen.keys():
                 self._seen[decoded.icao] = PlaneSeen(decoded.icao)
             else:
                 self._seen[decoded.icao].seen()
+        else:
+            self._ignored += 1
 
+        if datetime.datetime.now() >= self._next_update:
+            self._next_update = datetime.datetime.now() + self._update_period
             interest = False
-            for seen in self._seen.values():
+            for seen in sorted(self._seen.values(), key=lambda x: x.time_since_seen().total_seconds(), reverse=True):
                 if seen.is_interesting():
                     if not interest:
-                        print "seen {} (ignored {} messages):".format(datetime.datetime.now(), self._ignored)
+                        print "\n" * 100
+                        print "seen {} (ign: {}/{}):".format(datetime.datetime.now(), self._ignored, self._total)
                         interest = True
-                    print "  {:X}: count={} ({} seconds ago)".format(
+                    print "  {:06X}: count={} ({} seconds ago)".format(
                         seen.icao(),
                         seen.count(),
                         round(seen.time_since_seen().total_seconds(), 2)
                     )
-
             self._ignored = 0
-        else:
-            self._ignored += 1
+            self._total = 0
 
 
 def main():

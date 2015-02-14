@@ -45,6 +45,7 @@ class Client(object):
         self._rx_channel = None
         self._rx_queue_name = None
         self._received = None
+        self._rx_consumer_tag = None
 
 
 
@@ -77,18 +78,25 @@ class Client(object):
             queue=self._rx_queue_name
         )
 
-        self._rx_channel.basic_consume(
+        self._rx_consumer_tag = self._rx_channel.basic_consume(
             self.on_receive_message,
             queue=self._rx_queue_name,
             no_ack=True
         )
 
+        return self._rx_consumer_tag
+
     def on_receive_message(self, channel, method, properties, body):
         _ = channel, method, properties
+
         if self._received is not None:
             self._received.append(body)
         else:
             self.handle_received(body)
+
+        if self.should_exit():
+            print "cancelling data rx"
+            self._rx_channel.stop_consuming(self._rx_consumer_tag)
 
     def handle_received(self, message):
         pass
@@ -100,6 +108,8 @@ class Client(object):
 
     def handle_sigint(self, signum, frame):
         _ = signum, frame
+
+        print "sigint caught"
         self._received_sigint = True
 
     def consume_in_worker(self):
@@ -120,12 +130,14 @@ class Client(object):
         worker.join()
 
     def consume(self):
-        while not self._received_sigint:
+        while not self.should_exit():
             try:
                 self._rx_channel.start_consuming()
             except Exception, ex:
-                if not self._received_sigint:
+                if not self.should_exit():
                     raise
+                else:
+                    print "exception whilst exiting: {}".format(ex)
 
     def send_blob(self, message):
         blob = json.dumps(message)
@@ -168,9 +180,21 @@ class Message(object):
         if -1 in (start, end):
             return None
 
+        def decode_hex_str(hex_str):
+            return [int(hex_str[i:i+2], 16) for i in range(0, len(hex_str), 2)]
+
+        def bin_padded(value, length=8):
+            binary = bin(value)[2:]
+            missing = length - len(binary)
+            if missing > 0:
+                binary = ("0" * missing) + binary
+            return binary
+
         byte_string = encoded[start+1:end]
-        byte_values = [int(byte_string[i:i+2], 16) for i in range(0, len(byte_string), 2)]
-        bit_string = "".join([bin(value)[2:] for value in byte_values])
+        if len(byte_string) % 2 != 0:
+            return None
+        byte_values = decode_hex_str(byte_string)
+        bit_string = "".join([bin_padded(value) for value in byte_values])
 
         def bits(offset, length):
             return int(bit_string[offset:offset+length], 2)
