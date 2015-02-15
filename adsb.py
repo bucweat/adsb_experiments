@@ -14,7 +14,7 @@ class Receiver(object):
         self._exit_callback = exit_callback
 
         self._process = subprocess.Popen(
-            ['rtl_adsb'], stdout=subprocess.PIPE, stderr=open('/dev/null', 'w')
+            ['rtl_adsb', '-Q', '2'], stdout=subprocess.PIPE, stderr=open('/dev/null', 'w')
         )
 
     def run(self):

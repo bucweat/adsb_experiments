@@ -21,15 +21,41 @@ def main():
     print("exiting")
 
 
+class Track(object):
+    def __init__(self):
+        self._first_seen = datetime.datetime.now()
+        self._count = 1
+        self._last_seen = self._first_seen
+
+    def time_since_first_seen(self):
+        return datetime.datetime.now() - self._first_seen
+
+    def time_since_last_seen(self):
+        return datetime.datetime.now() - self._last_seen
+
+    def count(self):
+        return self._count
+
+    def first_seen(self):
+        return self._first_seen
+
+    def last_seen(self):
+        return self._last_seen
+
+    def seen(self):
+        self._count += 1
+        self._last_seen = datetime.datetime.now()
+
+
 class PlaneSeen(object):
     def __init__(self, icao):
         self._icao = icao
-        self._last_seen = datetime.datetime.now()
         self._count = 1
-        self._count_this_track = 1
+        self._current_track = Track()
+        self._previous_tracks = []
+
         self._interest_period = datetime.timedelta(seconds=5)
-        self._first_seen = self._last_seen
-        self._forget_period = datetime.timedelta(minutes=2)
+        self._forget_period = datetime.timedelta(minutes=5)
 
     def icao(self):
         return self._icao
@@ -38,29 +64,33 @@ class PlaneSeen(object):
         return self._count
 
     def count_this_track(self):
-        return self._count_this_track
+        return self._current_track.count()
 
     def first_seen(self):
-        return self._first_seen
+        return self._current_track.first_seen()
+
+    def current_track(self):
+        return self._current_track
+
+    def previous_tracks(self):
+        return self._previous_tracks
 
     def seen(self):
         self._count += 1
-        timestamp = datetime.datetime.now()
-        if self.time_since_seen() >= self._forget_period:
-            self._first_seen = timestamp
-            self._count_this_track = 1
+        if self.time_since_last_seen() >= self._forget_period:
+            self._previous_tracks.append(self._current_track)
+            self._current_track = Track()
         else:
-            self._count_this_track += 1
-        self._last_seen = timestamp
+            self._current_track.seen()
 
-    def time_since_seen(self):
-        return datetime.datetime.now() - self._last_seen
+    def time_since_last_seen(self):
+        return self._current_track.time_since_last_seen()
 
     def tracking_since(self):
-        return datetime.datetime.now() - self._first_seen
+        return datetime.datetime.now() - self.first_seen()
 
     def is_interesting(self):
-        return self.time_since_seen() < self._interest_period
+        return self.time_since_last_seen() < self._interest_period
 
 
 class RecentlySeen(adsb.Client):
@@ -97,10 +127,15 @@ class RecentlySeen(adsb.Client):
                         seen.icao(),
                         seen.count_this_track(),
                         seen.count(),
-                        round(seen.time_since_seen().total_seconds(), 2),
+                        round(seen.time_since_last_seen().total_seconds(), 2),
                         round(seen.tracking_since().total_seconds(), 2),
                         seen.first_seen().strftime('%d/%m/%Y %H:%M:%S')
                     )
+                    for track in seen.previous_tracks():
+                        delta = track.last_seen() - track.first_seen()
+                        print "   count={} {}s ({} -> {})".format(
+                            track.count(), delta, track.first_seen(), track.last_seen()
+                        )
             self._ignored = 0
             self._total = 0
 
