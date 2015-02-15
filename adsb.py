@@ -14,7 +14,7 @@ class Receiver(object):
         self._exit_callback = exit_callback
 
         self._process = subprocess.Popen(
-            ['rtl_adsb', '-Q', '2'], stdout=subprocess.PIPE, stderr=open('/dev/null', 'w')
+            ['rtl_adsb', '-Q', '2', '-S', '-e', '0'], stdout=subprocess.PIPE, stderr=open('/dev/null', 'w')
         )
 
     def run(self):
@@ -46,8 +46,6 @@ class Client(object):
         self._rx_queue_name = None
         self._received = None
         self._rx_consumer_tag = None
-
-
 
     def should_exit(self):
         return self._received_sigint
@@ -154,6 +152,14 @@ class Message(object):
         self.ca = ca
         self.icao = icao
         self.raw = raw
+
+    def type_description(self):
+        if self.df == 17:
+            return "ADS-B (air)"
+        elif self.df == 18:
+            return "ADS-B (gnd)"
+        else:
+            return "unknown"
 
     def to_json(self):
         return {

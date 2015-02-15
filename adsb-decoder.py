@@ -31,8 +31,8 @@ class AdsbDecoderClient(adsb.Client):
 
         decoded = adsb.Message.from_encoded(raw_message)
 
-        print("{} -> DF: {} CA: {} ICAO: {:06X}".format(
-            raw_message, decoded.df, decoded.ca, decoded.icao
+        print("DF: {} CA: {} ICAO: {:06X}".format(
+            decoded.type_description(), decoded.ca, decoded.icao
         ))
 
         self.send_blob(decoded.to_json())

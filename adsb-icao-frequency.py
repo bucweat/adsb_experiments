@@ -55,7 +55,7 @@ class PlaneSeen(object):
         self._previous_tracks = []
 
         self._interest_period = datetime.timedelta(seconds=5)
-        self._forget_period = datetime.timedelta(minutes=5)
+        self._forget_period = datetime.timedelta(minutes=30)
 
     def icao(self):
         return self._icao
